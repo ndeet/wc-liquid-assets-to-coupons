@@ -1,0 +1,32 @@
+.la2c-redeem-form h3 {
+    margin-bottom: 20px;
+}
+
+.la2c-redemptions-list {
+    margin-top: 40px;
+}
+.la2c-redemptions-list h3 {
+    margin-bottom: 20px;
+}
+
+.la2c-table {
+    width: 100%;
+}
+
+.la2c-pager-container {
+    margin-top: 30px;
+}
+ul.la2c-pager
+{
+    display: flex;
+    align-items: flex-start;
+    justify-content: left;
+}
+
+ul.la2c-pager li {
+    margin-right: 5px;
+    padding: 7px 10px;
+    border: 1px solid #CCC;
+    border-radius: 3px;
+}
+
