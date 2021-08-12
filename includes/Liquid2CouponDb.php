@@ -49,7 +49,7 @@ class Liquid2CouponDb extends Liquid2CouponDbAbstract {
 		return array(
 			'customer_id' => 0,
 			'asset_id'    => '',
-			'quantity'    => '',
+			'quantity'    => 0,
 			'invoice_id'  => '',
 			'coupon_code'  => '',
 			'coupon_id'  => '',

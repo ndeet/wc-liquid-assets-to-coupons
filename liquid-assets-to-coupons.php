@@ -2,7 +2,7 @@
 /*
 Plugin Name: Liquid Assets to Coupons
 Description: Redeem coupons from liquid promotion assets to coupons.
-Version:     0.3.0
+Version:     0.4.0
 Author:      Andreas Tasch
 Author URI:  https://attec.at
 License:     MIT
@@ -59,6 +59,12 @@ require_once plugin_dir_path(__FILE__) . '/includes/Liquid2CouponDb.php';
 
 function la2c_redeem_token_template() {
 	$redeem_id = get_query_var('redeem-token');
+
+	// Make sure the configured product exists in store or abort here.
+	if (!$product = wc_get_product(LA2C_PRODUCT_ID)) {
+		echo __('The configured product does not exist, please make sure to use an existing product.');
+		return;
+	}
 
 	if (empty($redeem_id) && empty($_POST)) {
 		$db = new Liquid2CouponDb();
@@ -153,8 +159,10 @@ function la2c_template_redirect_redeem_token() {
 		$asset_symbol = sanitize_text_field($_POST['asset_symbol']);
 		$asset_id = LA2C_ASSET_MAP[$asset_symbol];
 		$quantity = sanitize_text_field($_POST['quantity']);
-		if (!is_numeric($quantity)) {
-			throw new \Exception("Quantity needs to be a number, aborting");
+		if (!is_numeric($quantity) || $quantity <= 1) {
+			$message = __('Quantity needs to be a number and >=1, aborting', 'la2c');
+			echo $message;
+			// todo log
 			return;
 		}
 

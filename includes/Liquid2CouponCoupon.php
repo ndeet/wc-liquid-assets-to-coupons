@@ -13,7 +13,7 @@ class Liquid2CouponCoupon {
 		// Coupon amount is set to product price multiplied by the amount.
 		/** @var WC_Product */
 		if (!$product = wc_get_product($product_id)) {
-			throw new \Exception("Failed to load the product.");
+			throw new \Exception("Product not found.");
 		}
 		// Get product and the price.
 		$amount = $product->get_price() * $quantity;
