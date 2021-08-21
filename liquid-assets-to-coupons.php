@@ -2,7 +2,7 @@
 /*
 Plugin Name: Liquid Assets to Coupons
 Description: Redeem coupons from liquid promotion assets to coupons.
-Version:     0.4.0
+Version:     0.5.0
 Author:      Andreas Tasch
 Author URI:  https://attec.at
 License:     MIT
@@ -235,3 +235,36 @@ function la2c_template_redirect_callback() {
 	exit;
 }
 add_action( 'template_redirect', 'la2c_template_redirect_callback' );
+
+/**
+ * Disables payment methods for if user has no B-JDE voucher.
+ */
+function la2c_disable_payment_gateway_for_jade( $gateways ) {
+	// do nothing on "Pay for order" page
+	if (is_wc_endpoint_url( 'order-pay' )) {
+		return $gateways;
+	}
+
+	// Only continue for Jade product.
+	foreach (WC()->cart->get_cart_contents() as $key => $cart_item) {
+		if ($cart_item['data']->get_id() == LA2C_PRODUCT_ID) {
+			// Hide gateways if there is no coupon code applied.
+			if ($coupons = WC()->cart->get_applied_coupons()) {
+				foreach ($coupons as $couponCode) {
+					$couponId = wc_get_coupon_id_by_code($couponCode);
+					$coupon = new WC_Coupon($couponId);
+					if (in_array(LA2C_PRODUCT_ID, $coupon->get_product_ids())) {
+						return $gateways;
+					}
+				}
+				return [];
+			} else {
+				return [];
+			}
+		}
+	}
+
+	return $gateways;
+}
+// Comment this line below if priority access is not needed.
+add_filter( 'woocommerce_available_payment_gateways', 'la2c_disable_payment_gateway_for_jade' );
