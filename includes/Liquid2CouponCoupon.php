@@ -25,6 +25,7 @@ class Liquid2CouponCoupon {
 		$coupon->set_individual_use(true);
 		$coupon->set_usage_limit(1);
 		$coupon->set_usage_limit_per_user(1);
+		$coupon->set_limit_usage_to_x_items($quantity);
 		$coupon->set_free_shipping(false);
 		$coupon->set_exclude_sale_items(false);
 
