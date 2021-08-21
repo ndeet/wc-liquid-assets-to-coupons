@@ -2,7 +2,7 @@
 /*
 Plugin Name: Liquid Assets to Coupons
 Description: Redeem coupons from liquid promotion assets to coupons.
-Version:     0.5.0
+Version:     0.6.0
 Author:      Andreas Tasch
 Author URI:  https://attec.at
 License:     MIT
@@ -159,7 +159,7 @@ function la2c_template_redirect_redeem_token() {
 		$asset_symbol = sanitize_text_field($_POST['asset_symbol']);
 		$asset_id = LA2C_ASSET_MAP[$asset_symbol];
 		$quantity = sanitize_text_field($_POST['quantity']);
-		if (!is_numeric($quantity) || $quantity <= 1) {
+		if (!is_numeric($quantity) || $quantity < 1) {
 			$message = __('Quantity needs to be a number and >=1, aborting', 'la2c');
 			echo $message;
 			// todo log
