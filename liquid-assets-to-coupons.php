@@ -2,7 +2,7 @@
 /*
 Plugin Name: Liquid Assets to Coupons
 Description: Redeem coupons from liquid promotion assets to coupons.
-Version:     0.6.0
+Version:     0.7.0
 Author:      Andreas Tasch
 Author URI:  https://attec.at
 License:     MIT
@@ -268,3 +268,10 @@ function la2c_disable_payment_gateway_for_jade( $gateways ) {
 }
 // Comment this line below if priority access is not needed.
 add_filter( 'woocommerce_available_payment_gateways', 'la2c_disable_payment_gateway_for_jade' );
+
+// Function to overwrite WooCommerce default error message if no payment method available.
+function la2c_overwrite_no_payment_method_text() {
+	return __( 'Sorry, you can only purchase Jades with a valid coupon code created from redeeming a B-JDE token. If you have one, please apply it to continue. Learn how to redeem a B-JDE token with <a href="https://help.blockstream.com/hc/en-us/articles/4404618000921">this guide</a>.', 'la2c');
+}
+// Comment this below to disable the info message if no payment method available.
+add_filter('woocommerce_no_available_payment_methods_message', 'la2c_overwrite_no_payment_method_text');
