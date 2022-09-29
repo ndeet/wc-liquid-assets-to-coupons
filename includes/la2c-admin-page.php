@@ -5,10 +5,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Add Liquid Assets to Coupon Page
+ * Add Liquid Assets redemptions overview to la2c menu.
  */
 function la2c_add_settings_page() {
-	add_submenu_page( 'woocommerce', 'WooCommerce Liquid Assets to Coupons', 'Liquid Assets Coupons', 'manage_options', 'la2c-coupons', 'la2c_render_coupons_page' );
+	add_submenu_page( 'la2c', 'WooCommerce Liquid Assets to Coupons', 'Redemptions overview', 'manage_options', 'la2c-coupons', 'la2c_render_coupons_page' );
 }
 add_action( 'admin_menu', 'la2c_add_settings_page', 99 );
 
@@ -36,6 +36,7 @@ function la2c_render_coupons_page() {
     ]);
 	$total_results = $db->count();
 	$total_pages = ceil($total_results/$results_per_page);
+    $productsMap = new Liquid2CouponProductsMap();
 	?>
 	<h2>Woocommerce Liquid Assets Coupons</h2>
     <p>Total: <?php print $total_results; ?></p>
@@ -49,17 +50,23 @@ function la2c_render_coupons_page() {
                         <th><?php print __('User ID', 'la2c'); ?></th>
                         <th><?php print __('Invoice ID', 'la2c'); ?></th>
                         <th><?php print __('Status', 'la2c'); ?></th>
+                        <th><?php print __('Token', 'la2c'); ?></th>
                         <th><?php print __('Coupon Code', 'la2c'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
 				<?php foreach ($redemptions as $item) : ?>
+                    <?php
+                    // Load find the token by asset id.
+                    $token = $productsMap->getSymbolByAssetId($item->asset_id);
+                    ?>
                     <tr>
                         <td><?php print $item->id; ?></td>
                         <td><?php print $item->created; ?></td>
                         <td><?php print $item->customer_id; ?></td>
                         <td><?php print $item->invoice_id; ?></td>
                         <td><?php print $item->status; ?></td>
+                        <td><?php print $token; ?></td>
                         <td><?php print $item->coupon_code; ?></td>
                     </tr>
 				<?php endforeach; ?>

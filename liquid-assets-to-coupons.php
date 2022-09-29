@@ -2,7 +2,7 @@
 /*
 Plugin Name: Liquid Assets to Coupons
 Description: Redeem coupons from liquid promotion assets to coupons.
-Version:     0.7.0
+Version:     0.8.0
 Author:      Andreas Tasch
 Author URI:  https://attec.at
 License:     MIT
@@ -21,6 +21,7 @@ function la2c_redeem_endpoints_init() {
 add_action( 'init', 'la2c_redeem_endpoints_init', 10 );
 
 require_once plugin_dir_path(__FILE__) . '/includes/la2c-admin-page.php';
+require_once plugin_dir_path(__FILE__) . '/includes/la2c-admin-settings.php';
 
 // Override wc_get_template to search in plugin directory.
 function la2c_get_template($located, $template_name)
@@ -56,6 +57,7 @@ require_once plugin_dir_path(__FILE__) . '/includes/Liquid2CouponBTCPayClientLeg
 require_once plugin_dir_path(__FILE__) . '/includes/Liquid2CouponCoupon.php';
 require_once plugin_dir_path(__FILE__) . '/includes/Liquid2CouponDbAbstract.php';
 require_once plugin_dir_path(__FILE__) . '/includes/Liquid2CouponDb.php';
+require_once plugin_dir_path(__FILE__) . '/includes/Liquid2CouponProductsMap.php';
 
 function la2c_redeem_token_template() {
 	$redeem_id = get_query_var('redeem-token');
@@ -75,9 +77,16 @@ function la2c_redeem_token_template() {
 				'number' => '50'
 			]
 		);
+
+		$productsMap = new Liquid2CouponProductsMap();
+		$assetSymbols = $productsMap->getSymbols();
+
 		wc_get_template(
 			'myaccount/redeem-token.php',
-			['redemptions' => $redemptions ]
+			[
+				'redemptions' => $redemptions,
+				'asset_symbols' => $assetSymbols,
+			]
 		);
 	}
 
@@ -157,7 +166,17 @@ function la2c_template_redirect_redeem_token() {
 	// if has POST data try create an invoice.
 	if (empty($redeem_id) && !empty($_POST)) {
 		$asset_symbol = sanitize_text_field($_POST['asset_symbol']);
-		$asset_id = LA2C_ASSET_MAP[$asset_symbol];
+		// todo: check if symbol exists
+
+		// Find asset ID.
+		$productMap = new Liquid2CouponProductsMap();
+
+		if (!$asset_id = $productMap->getAssetIdBySymbol($asset_symbol)) {
+			$message = __('Could not find an asset ID for this symbol, aborting', 'la2c');
+			echo $message;
+			return;
+		}
+
 		$quantity = sanitize_text_field($_POST['quantity']);
 		if (!is_numeric($quantity) || $quantity < 1) {
 			$message = __('Quantity needs to be a number and >=1, aborting', 'la2c');
@@ -241,25 +260,30 @@ add_action( 'template_redirect', 'la2c_template_redirect_callback' );
  */
 function la2c_disable_payment_gateway_for_jade( $gateways ) {
 	// do nothing on "Pay for order" page
-	if (is_wc_endpoint_url( 'order-pay' )) {
+	if (is_wc_endpoint_url( 'order-pay' ) || is_admin()) {
 		return $gateways;
 	}
 
-	// Only continue for Jade product.
-	foreach (WC()->cart->get_cart_contents() as $key => $cart_item) {
-		if ($cart_item['data']->get_id() == LA2C_PRODUCT_ID) {
-			// Hide gateways if there is no coupon code applied.
-			if ($coupons = WC()->cart->get_applied_coupons()) {
-				foreach ($coupons as $couponCode) {
-					$couponId = wc_get_coupon_id_by_code($couponCode);
-					$coupon = new WC_Coupon($couponId);
-					if (in_array(LA2C_PRODUCT_ID, $coupon->get_product_ids())) {
-						return $gateways;
+	// Only continue for mapped products.
+	$productMap = new Liquid2CouponProductsMap();
+	$productIds = $productMap->getProductIds();
+	if ($cartContents = WC()->cart->get_cart_contents()) {
+		foreach ($cartContents as $key => $cart_item) {
+			if (in_array($cart_item['data']->get_id(), $productIds)) {
+				// Hide gateways if there is no coupon code applied.
+				if ($coupons = WC()->cart->get_applied_coupons()) {
+					foreach ($coupons as $couponCode) {
+						$couponId = wc_get_coupon_id_by_code($couponCode);
+						$coupon = new WC_Coupon($couponId);
+						$hasCouponForProduct = array_intersect($productIds, $coupon->get_product_ids());
+						if (!empty($hasCouponForProduct)) {
+							return $gateways;
+						}
 					}
+					return [];
+				} else {
+					return [];
 				}
-				return [];
-			} else {
-				return [];
 			}
 		}
 	}
@@ -271,7 +295,7 @@ add_filter( 'woocommerce_available_payment_gateways', 'la2c_disable_payment_gate
 
 // Function to overwrite WooCommerce default error message if no payment method available.
 function la2c_overwrite_no_payment_method_text() {
-	return __( 'Sorry, you can only purchase Jades with a valid coupon code created from redeeming a B-JDE token. If you have one, please apply it to continue. Learn how to redeem a B-JDE token with <a href="https://help.blockstream.com/hc/en-us/articles/4404618000921">this guide</a>.', 'la2c');
+	return __( 'Sorry, you can only purchase this product with a valid coupon code created from redeeming a Liquid Asset token. If you have one, please apply it to continue. Learn how to redeem a B-JDE (and other) tokens with <a href="https://help.blockstream.com/hc/en-us/articles/4404618000921">this guide</a>.', 'la2c');
 }
 // Comment this below to disable the info message if no payment method available.
 add_filter('woocommerce_no_available_payment_methods_message', 'la2c_overwrite_no_payment_method_text');
