@@ -2,7 +2,7 @@
 /*
 Plugin Name: Liquid Assets to Coupons
 Description: Redeem coupons from liquid promotion assets to coupons.
-Version:     0.8.0
+Version:     0.8.1
 Author:      Andreas Tasch
 Author URI:  https://attec.at
 License:     MIT
