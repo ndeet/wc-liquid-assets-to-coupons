@@ -48,6 +48,7 @@ function la2c_section_maps_callback( $args ) {
     <p><pre>SYMBOL;ASSET_ID;PRODUCT_ID</pre></p>
     <p>e.g. for B-JDE and Product ID 151:</p>
     <p><pre>B-JDE;78557eb89ea8439dc1a519f4eb0267c86b261068648a0f84a5c6b55ca39b66f1;151</pre></p>
+    <p><strong>Info:</strong> please make also sure that each product and asset is only used once.</p>
 	<?php
 }
 
