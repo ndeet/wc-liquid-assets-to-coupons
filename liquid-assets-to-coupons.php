@@ -61,12 +61,7 @@ require_once plugin_dir_path(__FILE__) . '/includes/Liquid2CouponProductsMap.php
 
 function la2c_redeem_token_template() {
 	$redeem_id = get_query_var('redeem-token');
-
-	// Make sure the configured product exists in store or abort here.
-	if (!$product = wc_get_product(LA2C_PRODUCT_ID)) {
-		echo __('The configured product does not exist, please make sure to use an existing product.');
-		return;
-	}
+	$productsMap = new Liquid2CouponProductsMap();
 
 	if (empty($redeem_id) && empty($_POST)) {
 		$db = new Liquid2CouponDb();
@@ -78,7 +73,6 @@ function la2c_redeem_token_template() {
 			]
 		);
 
-		$productsMap = new Liquid2CouponProductsMap();
 		$assetSymbols = $productsMap->getSymbols();
 
 		wc_get_template(
@@ -100,7 +94,13 @@ function la2c_redeem_token_template() {
 				return;
 			}
 
-			$product_id = LA2C_PRODUCT_ID;
+			$product_id = $productsMap->getProductIdByAssetId($data->asset_id);
+
+			// Make sure the configured product exists in store or abort here.
+			if (!$product = wc_get_product($product_id)) {
+				echo __('The configured product does not exist, please make sure to use an existing product.');
+				return;
+			}
 
 			// Check the invoice status.
 			$client = new Liquid2CouponBTCPayClientLegacy();
