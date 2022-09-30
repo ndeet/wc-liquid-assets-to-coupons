@@ -1,42 +1,60 @@
 <?php
 
-require_once plugin_dir_path(__FILE__) . '../includes/Liquid2CouponBTCPayClientLegacy.php';
 require_once plugin_dir_path(__FILE__) . '../includes/Liquid2CouponCoupon.php';
 require_once plugin_dir_path(__FILE__) . '../includes/Liquid2CouponDbAbstract.php';
 require_once plugin_dir_path(__FILE__) . '../includes/Liquid2CouponDb.php';
 require_once plugin_dir_path(__FILE__) . '../includes/Liquid2CouponProductsMap.php';
+require_once plugin_dir_path(__FILE__) . '../includes/Liquid2CouponBTCPayGF.php';
 
-$raw_post_data = file_get_contents('php://input');
+$rawPostData = file_get_contents('php://input');
 
-if (false === $raw_post_data) {
-	throw new \Exception('Could not read from the php://input stream or invalid BTCPay IPN received.');
+if ( false === $rawPostData) {
+	throw new \Exception('La2c: Could not read from the php://input stream or invalid BTCPay IPN received.');
 }
 
-$ipn = json_decode($raw_post_data);
+// Validate webhook request.
+// Note: getallheaders() CamelCases all headers for PHP-FPM/Nginx but for others maybe not, so "BTCPay-Sig" may becomes "Btcpay-Sig".
+$headers = getallheaders();
+$signature = '';
+foreach ($headers as $key => $value) {
+	if (strtolower($key) === 'btcpay-sig') {
+		$signature = $value;
+	}
+}
 
-if (true === empty($ipn)) {
+$btcpay = new Liquid2CouponBTCPayGF();
+if (empty($signature) || !$btcpay->validWebhookRequest($signature, $rawPostData)) {
+	throw new \Exception('La2c: Failed to validate webhook, aborting.');
+}
+
+$ipn = json_decode($rawPostData);
+
+if (empty($ipn)) {
 	throw new \Exception('Could not decode the JSON payload from BTCPay.');
 }
 
-if (empty($ipn->id)) {
+if (empty($ipn->invoiceId)) {
 	throw new \Exception('Invalid BTCPay payment notification message received - did not receive invoice ID.');
 }
 
-$ipn_invoice_id = filter_var($ipn->id, FILTER_SANITIZE_STRING);
+$invoiceId = filter_var($ipn->invoiceId, FILTER_SANITIZE_STRING);
 
 try {
-	$client = new Liquid2CouponBTCPayClientLegacy();
-	$invoice = $client->getInvoice($ipn_invoice_id);
+	$invoice = $btcpay->getInvoice($invoiceId);
 } catch (\Throwable $e) {
-	throw new \Exception("Error fetching invoice from BTCPay.");
+	throw new \Exception("La2c: Error fetching invoice from BTCPay.");
 }
 
 // Update the redemption data.
 $db = new Liquid2CouponDb();
 $updated = false;
 
-if ($data = $db->get_by('invoice_id', $invoice->getId())) {
-	if (in_array($invoice->getStatus(), ['paid', 'confirmed', 'complete'])) {
+if ($data = $db->get_by('invoice_id', $invoice->getData()['id'])) {
+	$invoiceStatus = $invoice->getStatus();
+	$invoiceStatusAdditional = $invoice->getData()['additionalStatus'];
+	if (in_array($invoiceStatus, ['Processing', 'Settled']) ||
+		in_array($invoiceStatusAdditional, ['PaidLate', 'PaidOver'])
+	) {
 		$productsMap = new Liquid2CouponProductsMap();
 		$productId = $productsMap->getProductIdByAssetId($data->asset_id);
 		// Create a new coupon if none was generated already.

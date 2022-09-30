@@ -2,7 +2,7 @@
 /*
 Plugin Name: Liquid Assets to Coupons
 Description: Redeem coupons from liquid promotion assets to coupons.
-Version:     0.8.1
+Version:     1.0.0
 Author:      Andreas Tasch
 Author URI:  https://attec.at
 License:     MIT
@@ -53,11 +53,11 @@ function la2c_query_vars($vars) {
 }
 add_filter('query_vars', 'la2c_query_vars');
 
-require_once plugin_dir_path(__FILE__) . '/includes/Liquid2CouponBTCPayClientLegacy.php';
 require_once plugin_dir_path(__FILE__) . '/includes/Liquid2CouponCoupon.php';
 require_once plugin_dir_path(__FILE__) . '/includes/Liquid2CouponDbAbstract.php';
 require_once plugin_dir_path(__FILE__) . '/includes/Liquid2CouponDb.php';
 require_once plugin_dir_path(__FILE__) . '/includes/Liquid2CouponProductsMap.php';
+require_once plugin_dir_path(__FILE__) . '/includes/Liquid2CouponBTCPayGF.php';
 
 function la2c_redeem_token_template() {
 	$redeem_id = get_query_var('redeem-token');
@@ -103,11 +103,14 @@ function la2c_redeem_token_template() {
 			}
 
 			// Check the invoice status.
-			$client = new Liquid2CouponBTCPayClientLegacy();
-			if ($invoice = $client->getInvoice($data->invoice_id)) {
-				$valid_invoice_states = ['paid', 'confirmed', 'complete'];
-				if (!in_array($invoice->getStatus(), $valid_invoice_states)) {
-					echo __('The invoice has not been paid yet, therefore no coupon code was generated. Return here after payment completed.', 'la2c');
+			$btcpay = new Liquid2CouponBTCPayGF();
+			if ($invoice = $btcpay->getInvoice($data->invoice_id)) {
+				$invoiceStatus = $invoice->getStatus();
+				$invoiceStatusAdditional = $invoice->getData()['additionalStatus'];
+				if (!in_array($invoiceStatus, ['Processing', 'Settled']) &&
+					!in_array($invoiceStatusAdditional, ['PaidLate', 'PaidOver'])
+				) {
+					echo __('The invoice has not been paid yet, therefore no coupon code was generated. Return here after payment completed and you will see the coupon code in the overview.', 'la2c');
 					return; // abort in case the invoice is not fully paid.
 				}
 				$db->update($redeem_id, ['status' => $invoice->getStatus()]);
@@ -203,20 +206,15 @@ function la2c_template_redirect_redeem_token() {
 		}
 
 		try {
-			$legacyClient = new Liquid2CouponBTCPayClientLegacy();
+			$client = new Liquid2CouponBTCPayGF();
 
-			$redirect_url = get_home_url() . '/my-account/redeem-token/' . $db_redeem_id;
-			$callback_url = get_home_url() . '/redeem-callback';
-
-			/** @var Bitpay\Invoice $invoice */
-			$invoice = $legacyClient->createInvoice(
+			/** @var \BTCPayServer\Result\Invoice $invoice */
+			$invoice = $client->createInvoice(
 				$asset_id,
 				$asset_symbol,
 				$quantity,
 				get_current_user_id(),
-				$db_redeem_id,
-				$callback_url,
-				$redirect_url
+				$db_redeem_id
 			);
 		} catch ( \Throwable $e ) {
 			//todo: log
@@ -227,12 +225,12 @@ function la2c_template_redirect_redeem_token() {
 		if ($invoice) {
 			// Update entry db with invoice id
 			$db->update($db_redeem_id, [
-				'invoice_id' => $invoice->getId(),
+				'invoice_id' => $invoice->getData()['id'],
 				'status' => 'unpaid',
 			]);
 
 			// Redirect to BTCPay Server invoice.
-			if (wp_redirect($invoice->getUrl())) {
+			if (wp_redirect($invoice->getData()['checkoutLink'])) {
 				exit;
 			}
 
@@ -256,9 +254,9 @@ function la2c_template_redirect_callback() {
 add_action( 'template_redirect', 'la2c_template_redirect_callback' );
 
 /**
- * Disables payment methods for if user has no B-JDE voucher.
+ * Disables payment methods for if user has no coupon code submitted on checkout.
  */
-function la2c_disable_payment_gateway_for_jade( $gateways ) {
+function la2c_disable_payment_gateway( $gateways ) {
 	// do nothing on "Pay for order" page
 	if (is_wc_endpoint_url( 'order-pay' ) || is_admin()) {
 		return $gateways;
@@ -291,7 +289,7 @@ function la2c_disable_payment_gateway_for_jade( $gateways ) {
 	return $gateways;
 }
 // Comment this line below if priority access is not needed.
-add_filter( 'woocommerce_available_payment_gateways', 'la2c_disable_payment_gateway_for_jade' );
+add_filter( 'woocommerce_available_payment_gateways', 'la2c_disable_payment_gateway' );
 
 // Function to overwrite WooCommerce default error message if no payment method available.
 function la2c_overwrite_no_payment_method_text() {
