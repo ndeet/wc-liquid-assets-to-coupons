@@ -264,7 +264,8 @@ function la2c_disable_payment_gateway( $gateways ) {
 
 	// Only continue for mapped products.
 	$productMap = new Liquid2CouponProductsMap();
-	$productIds = $productMap->getProductIds();
+	$productIds = $productMap->getEnforcedCouponProductIds();
+	$enforceCoupon = false;
 	if ($cartContents = WC()->cart->get_cart_contents()) {
 		foreach ($cartContents as $key => $cart_item) {
 			if (in_array($cart_item['data']->get_id(), $productIds)) {
@@ -273,16 +274,19 @@ function la2c_disable_payment_gateway( $gateways ) {
 					foreach ($coupons as $couponCode) {
 						$couponId = wc_get_coupon_id_by_code($couponCode);
 						$coupon = new WC_Coupon($couponId);
-						$hasCouponForProduct = array_intersect($productIds, $coupon->get_product_ids());
-						if (!empty($hasCouponForProduct)) {
-							return $gateways;
+						$hasCouponForProduct = in_array($cart_item['data']->get_id(), $coupon->get_product_ids());
+						if (empty($hasCouponForProduct)) {
+							$enforceCoupon = true;
 						}
 					}
-					return [];
 				} else {
-					return [];
+					$enforceCoupon = true;
 				}
 			}
+		}
+
+		if ($enforceCoupon) {
+			return [];
 		}
 	}
 

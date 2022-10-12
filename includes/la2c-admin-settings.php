@@ -34,6 +34,18 @@ function la2c_settings_init() {
 		);
 	}
 
+	add_settings_field(
+		'la2c_enforce_coupons',
+		__( 'Enforce Coupons for Products on checkout', 'la2c' ),
+		'la2c_enforce_coupons_render',
+		'la2c',
+		'la2c_section_maps',
+		[
+			'label_for' => 'la2c_enforce_coupons',
+			'class' => 'la2c_row',
+		]
+	);
+
     add_settings_section(
 		'la2c_section_btcpay',
 		__( 'BTCPay Greenfield API config:', 'la2c' ), 'la2c_section_btcpay_callback',
@@ -140,6 +152,15 @@ function la2c_map_render( $args ) {
 	$options = get_option( 'la2c_options' );
 	?>
     <input type='text' id='<?php echo esc_attr( $args['label_for'] ); ?>' name='la2c_options[<?php echo esc_attr( $args['label_for'] ); ?>]' value='<?php echo $options[ $args['label_for'] ]; ?>' size="80">
+	<?php
+}
+
+// Render enforce coupons field.
+function la2c_enforce_coupons_render( $args ) {
+	$options = get_option( 'la2c_options' );
+	?>
+    <input type='text' id='<?php echo esc_attr( $args['label_for'] ); ?>' name='la2c_options[<?php echo esc_attr( $args['label_for'] ); ?>]' value='<?php echo $options[ $args['label_for'] ]; ?>' size="80">
+    <p>Enter a comma separated list of product IDs which you want to restrict for payment with coupon codes. e.g. 10,30,192,38</p>
 	<?php
 }
 

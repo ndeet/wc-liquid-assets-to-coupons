@@ -9,11 +9,21 @@ class Liquid2CouponProductsMap {
 
 	private $productMap = [];
 
+	private $enforceCouponProducts = [];
+
 	public function __construct() {
 		$options = get_option( 'la2c_options' );
 		foreach ($options as $key => $value) {
 			if (strpos($key, 'la2c_map') !== false && !empty($value)) {
 				$this->productMapSource[] = $value;
+			}
+			if ($key === 'la2c_enforce_coupons' && !empty($value)) {
+				$tmpList = explode(',', $value);
+				foreach ($tmpList as $item) {
+					if (!empty($item) && is_numeric($item)) {
+						$this->enforceCouponProducts[] = (int) trim($item);
+					}
+				}
 			}
 		}
 
@@ -93,4 +103,7 @@ class Liquid2CouponProductsMap {
 		return NULL;
 	}
 
+	public function getEnforcedCouponProductIds() {
+		return $this->enforceCouponProducts;
+	}
 }
