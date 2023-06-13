@@ -2,7 +2,7 @@
 /*
 Plugin Name: Liquid Assets to Coupons
 Description: Redeem coupons from liquid promotion assets to coupons.
-Version:     1.1.0
+Version:     1.1.1
 Author:      Andreas Tasch
 Author URI:  https://attec.at
 License:     MIT
@@ -257,15 +257,21 @@ add_action( 'template_redirect', 'la2c_template_redirect_callback' );
  * Disables payment methods for if user has no coupon code submitted on checkout.
  */
 function la2c_disable_payment_gateway( $gateways ) {
-	// do nothing on "Pay for order" page
+	// Do nothing on "Pay for order" page or on admin pages.
 	if (is_wc_endpoint_url( 'order-pay' ) || is_admin()) {
 		return $gateways;
 	}
+
+  // Do nothing if cart object is not available.
+  if (!WC()->cart) {
+    return $gateways;
+  }
 
 	// Only continue for mapped products.
 	$productMap = new Liquid2CouponProductsMap();
 	$productIds = $productMap->getEnforcedCouponProductIds();
 	$enforceCoupon = false;
+
 	if ($cartContents = WC()->cart->get_cart_contents()) {
 		foreach ($cartContents as $key => $cart_item) {
 			if (in_array($cart_item['data']->get_id(), $productIds)) {
@@ -292,6 +298,7 @@ function la2c_disable_payment_gateway( $gateways ) {
 
 	return $gateways;
 }
+
 // Comment this line below if priority access is not needed.
 add_filter( 'woocommerce_available_payment_gateways', 'la2c_disable_payment_gateway' );
 
